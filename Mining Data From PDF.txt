@@ -1,0 +1,84 @@
+import PyPDF2
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+import nltk
+import re
+from collections import Counter
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+# Step 1: Open and read the PDF file
+pdf_file = open('Machine Learning in Agriculture.pdf', 'rb')
+pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+
+all_text = ""
+for page in pdf_reader.pages:
+    page_text = page.extract_text()
+    if page_text:
+        all_text += page_text + " "
+
+
+def process_text(text):
+    # 1. Lowercasing
+    text = text.lower()
+    
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    text = re.sub(r'\b[a-zA-Z]{1,2}\b', '', text)  # Remove 1-2 letter words
+    
+
+    tokens = word_tokenize(text)
+    
+    stop_words = set(stopwords.words('english'))
+    custom_stopwords = {'figure', 'table', 'chapter', 'section', 'et', 'al'}  # Academic stopwords
+    stop_words.update(custom_stopwords)
+    filtered_tokens = [word for word in tokens if word not in stop_words and len(word) > 2]
+    
+    stemmer = PorterStemmer()
+    stemmed_tokens = [stemmer.stem(word) for word in filtered_tokens]
+    
+    lemmatizer = WordNetLemmatizer()
+    final_tokens = [lemmatizer.lemmatize(word) for word in stemmed_tokens]
+    
+    return final_tokens
+
+processed_tokens = process_text(all_text)
+
+word_freq = Counter(processed_tokens)
+top_words = word_freq.most_common(20)  # Get top 20 words
+
+# Word Cloud
+wordcloud = WordCloud(width=1000, 
+                     height=600,
+                     background_color='black',
+                     colormap='viridis',
+                     max_words=150).generate(' '.join(processed_tokens))
+
+plt.figure(figsize=(12, 8))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+plt.title('Key Terms in Machine Learning in Agriculture', pad=20)
+plt.show()
+
+# Bar chart of top words
+plt.figure(figsize=(12, 6))
+words, counts = zip(*top_words)
+plt.barh(words, counts, color='skyblue')
+plt.gca().invert_yaxis()  # Highest frequency at top
+plt.xlabel('Frequency')
+plt.title('Top 20 Most Frequent Terms')
+plt.tight_layout()
+plt.show()
+
+print("\nTop 20 Keywords in the Document:")
+print("{:<20} {:<10}".format('Keyword', 'Count'))
+print("-" * 30)
+for word, count in top_words:
+    print("{:<20} {:<10}".format(word, count))
+
+pdf_file.close()
